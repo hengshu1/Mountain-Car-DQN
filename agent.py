@@ -9,16 +9,13 @@ from tensorflow.keras.optimizers import Adam
 
 from replay_buffer import ReplayBuffer
 
-
 def DeepQNetwork(lr, num_actions, input_dims, fc1, fc2):
     q_net = Sequential()
     q_net.add(Dense(fc1, input_dim=input_dims, activation='relu'))
     q_net.add(Dense(fc2, activation='relu'))
     q_net.add(Dense(num_actions, activation=None))
     q_net.compile(optimizer=Adam(learning_rate=lr), loss='mse')
-
     return q_net
-
 
 class Agent:
     def __init__(self, lr, discount_factor, num_actions, epsilon, batch_size, input_dims):
@@ -44,7 +41,6 @@ class Agent:
             state = np.array([observation])
             actions = self.q_net(state)
             action = tf.math.argmax(actions, axis=1).numpy()[0]
-
         return action
 
     def train(self):
@@ -53,8 +49,7 @@ class Agent:
         if self.step_counter % self.update_rate == 0:
             self.q_target_net.set_weights(self.q_net.get_weights())
 
-        state_batch, action_batch, reward_batch, new_state_batch, done_batch = \
-            self.buffer.sample_buffer(self.batch_size)
+        state_batch, action_batch, reward_batch, new_state_batch, done_batch = self.buffer.sample_buffer(self.batch_size)
 
         q_predicted = self.q_net(state_batch)
         q_next = self.q_target_net(new_state_batch)
@@ -71,9 +66,8 @@ class Agent:
         self.step_counter += 1
 
     def train_model(self, env, num_episodes, graph):
-
         scores, episodes, avg_scores, obj = [], [], [], []
-        goal = -110
+        goal = -110 #todo: what's this?
         f = 0
         txt = open("saved_networks.txt", "w")
 
@@ -93,8 +87,7 @@ class Agent:
             episodes.append(i)
             avg_score = np.mean(scores[-100:])
             avg_scores.append(avg_score)
-            print("Episode {0}/{1}, Score: {2} ({3}), AVG Score: {4}".format(i, num_episodes, score, self.epsilon,
-                                                                             avg_score))
+            print("Episode {0}/{1}, Score: {2} ({3}), AVG Score: {4}".format(i, num_episodes, score, self.epsilon, avg_score))
             if avg_score >= -110 and score >= -108:
                 self.q_net.save(("saved_networks/dqn_model{0}".format(f)))
                 self.q_net.save_weights(("saved_networks/dqn_model{0}/net_weights{0}.h5".format(f)))

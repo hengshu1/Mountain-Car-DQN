@@ -4,10 +4,12 @@ import gym
 env = gym.make("MountainCar-v0")
 spec = gym.spec("MountainCar-v0")
 
+#train
 train = 1
 test = 0
-
 num_episodes = 1500
+
+
 graph = True
 
 file_type = 'tf'
