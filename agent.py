@@ -120,7 +120,7 @@ class Agent:
         print('bad models are:', bad_models)
 
 
-    def test(self, env, num_episodes, file_type, file, graph):
+    def test(self, env, num_episodes, file_type, file, rendering=False):
         print('loading model ', file)
         if file_type == 'tf':
             self.q_net = tf.keras.models.load_model(file)
@@ -130,18 +130,19 @@ class Agent:
 
         #set the agent in exploitation mode; no exploration in testing
         self.epsilon = 0.0
-        scores = []
+        scores = np.zeros(num_episodes)
         for i in range(num_episodes):
             state = env.reset()
             done = False
             episode_score = 0.0
             while not done:
-                env.render()
+                if rendering:
+                    env.render()
                 action = self.policy_epsilon_greedy(state)
                 new_state, reward, done, _ = env.step(action)
                 episode_score += reward
                 state = new_state
-            scores.append(episode_score)
+            scores[i] = episode_score
             print("Episode {0}/{1}, Score: {2} (epsilon={3})".format(i, num_episodes, episode_score, self.epsilon))
         # this can be moved out.
         # if graph:
@@ -156,6 +157,7 @@ class Agent:
 
         env.close()
         avg_score = scores.mean()
-        print('Average score:', avg_score)
+        std_score = scores.std()
+        print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@Average score:{}; std: {}'.format(avg_score, std_score))
 
-        return avg_score, scores
+        return avg_score, std_score, scores

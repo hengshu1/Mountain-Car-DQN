@@ -1,5 +1,7 @@
-import argparse, sys
+import argparse, sys, time
+import numpy as np
 import gym
+
 from agent import Agent
 
 '''
@@ -29,10 +31,15 @@ if __name__ == '__main__':
         file = 'saved_networks/dqn_model_1498'#more stable: so the variance is really high; even training is near the end. 
         dqn_agent.test(env, num_episodes, file_type, file, graph=True)
     elif args.mode == 'testn':
-        for i in range(1500):
+        num_models = 1500
+        avg_score, std_score = np.zeros(num_models), np.zeros(num_models)
+        for i in reversed(range(num_models-100, num_models)): #just the last ten models
+            t0 = time.time()
             file = 'saved_networks/dqn_model_'+str(i)
-            avg_score, scores = dqn_agent.test(env, num_episodes=1, file_type='tf', file=file, graph=True)
-
+            avg_score[i], std_score[i], _ = dqn_agent.test(env, num_episodes=30, file_type='tf', file=file, graph=True)
+            print('testing one model takes:', time.time() -  t0)
+        np.save('avg_score.npy', avg_score)
+        np.save('std_score.npy', std_score)
     else:
         print('unknown mode. exit')
         sys.exit(1)
