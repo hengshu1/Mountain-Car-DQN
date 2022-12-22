@@ -130,10 +130,7 @@ class Agent:
 
         #set the agent in exploitation mode; no exploration in testing
         self.epsilon = 0.0
-
-        scores, episodes, avg_scores, obj = [], [], [], []
-        goal = -110
-        score = 0.0
+        scores = []
         for i in range(num_episodes):
             state = env.reset()
             done = False
@@ -144,23 +141,21 @@ class Agent:
                 new_state, reward, done, _ = env.step(action)
                 episode_score += reward
                 state = new_state
-            score += episode_score
             scores.append(episode_score)
-            obj.append(goal)
-            episodes.append(i)
-            avg_score = np.mean(scores[-100:])
-            avg_scores.append(avg_score)
-            print("Episode {0}/{1}, Score: {2} (epsilon={3}), AVG Score: {4}".format(i, num_episodes, episode_score, self.epsilon, avg_score))
-
-        if graph:
-            df = pd.DataFrame({'x': episodes, 'Score': scores, 'Average Score': avg_scores, 'Solved Requirement': obj})
-
-            plt.plot('x', 'Score', data=df, marker='', color='blue', linewidth=2, label='Score')
-            plt.plot('x', 'Average Score', data=df, marker='', color='orange', linewidth=2, linestyle='dashed',
-                     label='AverageScore')
-            plt.plot('x', 'Solved Requirement', data=df, marker='', color='red', linewidth=2, linestyle='dashed',
-                     label='Solved Requirement')
-            plt.legend()
-            plt.savefig('MountainCar_Test.png')
+            print("Episode {0}/{1}, Score: {2} (epsilon={3})".format(i, num_episodes, episode_score, self.epsilon))
+        # this can be moved out.
+        # if graph:
+        #     # df = pd.DataFrame({'x': episodes, 'Score': scores, 'Average Score': avg_scores})
+        #     plt.plot('x', 'Score', data=df, marker='', color='blue', linewidth=2, label='Score')
+        #     plt.plot('x', 'Average Score', data=df, marker='', color='orange', linewidth=2, linestyle='dashed',
+        #              label='AverageScore')
+        #     plt.plot('x', 'Solved Requirement', data=df, marker='', color='red', linewidth=2, linestyle='dashed',
+        #              label='Solved Requirement')
+        #     plt.legend()
+        #     plt.savefig('MountainCar_Test.png')
 
         env.close()
+        avg_score = scores.mean()
+        print('Average score:', avg_score)
+
+        return avg_score, scores
