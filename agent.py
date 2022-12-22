@@ -3,19 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from tensorflow.python.keras import Sequential
-from tensorflow.python.keras.layers import Dense
-from tensorflow.keras.optimizers import Adam
-
 from replay_buffer import ReplayBuffer
-
-def DeepQNetwork(lr, num_actions, input_dims, fc1, fc2):
-    q_net = Sequential()
-    q_net.add(Dense(fc1, input_dim=input_dims, activation='relu'))
-    q_net.add(Dense(fc2, activation='relu'))
-    q_net.add(Dense(num_actions, activation=None))
-    q_net.compile(optimizer=Adam(learning_rate=lr), loss='mse')
-    return q_net
+from dqn_model import DeepQNetwork
+import time
 
 class Agent:
     def __init__(self, lr, discount_factor, num_actions, epsilon, batch_size, input_dims):
@@ -25,16 +15,14 @@ class Agent:
         self.batch_size = batch_size
         self.epsilon_decay = 0.001
         self.epsilon_final = 0.01
-        self.update_rate = 100
-        self.step_counter = 0
+        self.update_frequency = 100
+        self.step_counter = 0 #actually the batch counter: the number of batches that are replayed.
         self.buffer = ReplayBuffer(1000000, input_dims)
         self.q_net = DeepQNetwork(lr, num_actions, input_dims, 256, 256)
         self.q_target_net = DeepQNetwork(lr, num_actions, input_dims, 256, 256)
 
-    def store_tuple(self, state, action, reward, new_state, done):
-        self.buffer.store_tuples(state, action, reward, new_state, done)
 
-    def policy(self, observation):
+    def policy_epsilon_greedy(self, observation):
         if np.random.random() < self.epsilon:
             action = np.random.choice(self.action_space)
         else:
@@ -43,10 +31,13 @@ class Agent:
             action = tf.math.argmax(actions, axis=1).numpy()[0]
         return action
 
-    def train(self):
+    def sample_and_train_a_batch(self):
+        '''
+        If buffer has too few samples, this doesn't do anything
+        '''
         if self.buffer.counter < self.batch_size:
             return
-        if self.step_counter % self.update_rate == 0:
+        if self.step_counter % self.update_frequency == 0:
             self.q_target_net.set_weights(self.q_net.get_weights())
 
         state_batch, action_batch, reward_batch, new_state_batch, done_batch = self.buffer.sample_buffer(self.batch_size)
@@ -54,48 +45,65 @@ class Agent:
         q_predicted = self.q_net(state_batch)
         q_next = self.q_target_net(new_state_batch)
         q_max_next = tf.math.reduce_max(q_next, axis=1, keepdims=True).numpy()
-        q_target = np.copy(q_predicted)
 
+        #todo: the for-loop can be vectorized. Also the q_predicted is useless here, which can be removed. -- No. Actually the other actions are the same so we need q_target to init from q_predicted .
+        q_target = np.copy(q_predicted)
         for idx in range(done_batch.shape[0]):
             target_q_val = reward_batch[idx]
             if not done_batch[idx]:
-                target_q_val += self.discount_factor*q_max_next[idx]
+                target_q_val += self.discount_factor * q_max_next[idx]
             q_target[idx, action_batch[idx]] = target_q_val
+
         self.q_net.train_on_batch(state_batch, q_target)
+
+        #linearly decreasing the epsilon
+        # print('epsilon=', self.epsilon)
         self.epsilon = self.epsilon - self.epsilon_decay if self.epsilon > self.epsilon_final else self.epsilon_final
         self.step_counter += 1
 
     def train_model(self, env, num_episodes, graph):
         scores, episodes, avg_scores, obj = [], [], [], []
-        goal = -110 #todo: what's this?
-        f = 0
         txt = open("saved_networks.txt", "w")
+        bad_models = []
 
         for i in range(num_episodes):
+            t0 = time.time()
+
             done = False
             score = 0.0
             state = env.reset()
             while not done:
-                action = self.policy(state)
+                action = self.policy_epsilon_greedy(state)
                 new_state, reward, done, _ = env.step(action)
                 score += reward
-                self.store_tuple(state, action, reward, new_state, done)
+                self.buffer.store_tuples(state, action, reward, new_state, done)
                 state = new_state
-                self.train()
+                self.sample_and_train_a_batch()
+
+            # note the score is the performance for this training episode.
+            # In the final step, the model still updates one more time so the final score is not necessarily the final model's.
+            # to measure plummeting, we need to test the model during training.
             scores.append(score)
-            obj.append(goal)
+
             episodes.append(i)
-            avg_score = np.mean(scores[-100:])
+
+            avg_score = np.mean(scores[-100:])#smoothing scores in the last 100 episodes
             avg_scores.append(avg_score)
-            print("Episode {0}/{1}, Score: {2} ({3}), AVG Score: {4}".format(i, num_episodes, score, self.epsilon, avg_score))
-            if avg_score >= -110 and score >= -108:
-                self.q_net.save(("saved_networks/dqn_model{0}".format(f)))
-                self.q_net.save_weights(("saved_networks/dqn_model{0}/net_weights{0}.h5".format(f)))
-                txt.write("Save {0} - Episode {1}/{2}, Score: {3} ({4}), AVG Score: {5}\n".format(f, i, num_episodes,
-                                                                                                  score, self.epsilon,
-                                                                                                  avg_score))
-                f += 1
-                print("Network saved")
+            print("Episode {0}/{1}, Score: {2} ({3}), AVG Score: {4}, #Samples: {5}".format(i, num_episodes, score, self.epsilon, avg_score, self.buffer.counter))
+
+            #book keeping: the target net is some historical model; I'm saving it anyway, because sometimes it can be historical average too.
+            #todo: evaluate an episode like in test(): actually you can evaluate after training is done
+            self.q_net.save(("saved_networks/dqn_model_{0}".format(i)))
+            self.q_net.save_weights(("saved_networks/dqn_model_{0}/net_weights{0}.h5".format(i)))
+
+            self.q_target_net.save(("saved_networks/dqn_targetnet_{0}".format(i)))
+            self.q_target_net.save_weights(("saved_networks/dqn_targetnet_{0}/targetnet_weights{0}.h5".format(i)))
+
+            txt.write("Episode {0}/{1}, Score: {2} ({3}), AVG Score: {4}, #Samples: {5}".format(i, num_episodes, score, self.epsilon, avg_score, self.buffer.counter))
+
+            if i == 0:
+                print('one episode time is ', time.time()-t0)
+
 
         txt.close()
         if graph:
@@ -108,14 +116,21 @@ class Agent:
                      label='Solved Requirement')
             plt.legend()
             plt.savefig('MountainCar_Train.png')
+        np.save('bad_models.npy', np.array(bad_models))
+        print('bad models are:', bad_models)
+
 
     def test(self, env, num_episodes, file_type, file, graph):
+        print('loading model ', file)
         if file_type == 'tf':
             self.q_net = tf.keras.models.load_model(file)
         elif file_type == 'h5':
-            self.train_model(env, 5, False)
+            self.train_model(env, 5, False)#todo: why train model in testing mode?
             self.q_net.load_weights(file)
+
+        #set the agent in exploitation mode; no exploration in testing
         self.epsilon = 0.0
+
         scores, episodes, avg_scores, obj = [], [], [], []
         goal = -110
         score = 0.0
@@ -125,7 +140,7 @@ class Agent:
             episode_score = 0.0
             while not done:
                 env.render()
-                action = self.policy(state)
+                action = self.policy_epsilon_greedy(state)
                 new_state, reward, done, _ = env.step(action)
                 episode_score += reward
                 state = new_state
@@ -135,6 +150,7 @@ class Agent:
             episodes.append(i)
             avg_score = np.mean(scores[-100:])
             avg_scores.append(avg_score)
+            print("Episode {0}/{1}, Score: {2} (epsilon={3}), AVG Score: {4}".format(i, num_episodes, episode_score, self.epsilon, avg_score))
 
         if graph:
             df = pd.DataFrame({'x': episodes, 'Score': scores, 'Average Score': avg_scores, 'Solved Requirement': obj})
