@@ -167,3 +167,52 @@ class Agent:
         print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@Average score:{}; std: {}'.format(avg_score, std_score))
 
         return avg_score, std_score, scores
+
+    def test_and_collect(self, env, num_episodes):
+        self.epsilon = 0.0
+        scores = np.zeros(num_episodes)
+        for i in range(num_episodes):
+            state = env.reset()
+            # print('s0=', state)#different: yes
+            done = False
+            episode_score = 0.0
+            while not done:
+                action = self.policy_epsilon_greedy(state)
+                new_state, reward, done, _ = env.step(action)
+                episode_score += reward
+                self.buffer.store_tuples(state, action, reward, new_state, done)
+                state = new_state
+            scores[i] = episode_score
+            print("Episode {0}/{1}, Score: {2} (epsilon={3})".format(i, num_episodes, episode_score, self.epsilon))
+        env.close()
+        avg_score = scores.mean()
+        std_score = scores.std()
+
+        print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@Average score:{}; std: {}'.format(avg_score, std_score))
+        return avg_score, std_score, scores
+
+    def sample_and_test_a_batch(self):
+        '''
+        sample and test batch.
+        '''
+        if self.buffer.counter < self.batch_size:
+            return
+
+        print('self.batch_size=', self.batch_size)
+        state_batch, action_batch, reward_batch, new_state_batch, done_batch = self.buffer.sample_buffer(self.batch_size)
+
+        q_predicted = self.q_net(state_batch)
+        q_next = self.q_target_net(new_state_batch)
+        q_max_next = tf.math.reduce_max(q_next, axis=1, keepdims=True).numpy()
+
+        q_target = np.copy(q_predicted)
+        for idx in range(done_batch.shape[0]):
+            target_q_val = reward_batch[idx]
+            if not done_batch[idx]:
+                target_q_val += self.discount_factor * q_max_next[idx]
+            q_target[idx, action_batch[idx]] = target_q_val
+
+        loss = self.q_net.test_on_batch(state_batch, q_target)
+        print('test loss:', loss)#oh. Huge error!
+
+
