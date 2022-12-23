@@ -15,10 +15,15 @@ def combine_models(net1, net2, alpha=0.5):
     '''
     w1 = np.array(net1.get_weights())
     w2 = np.array(net2.get_weights())
-    print('w1.shape=', w1.shape)
-    print('w2.shape=', w2.shape)
-    sys.exit(1)
-    net1.set_weights(alpha*w1 + (1-alpha)*w2)
+    # print('w1.shape=', w1.shape)#each layer w,b
+    # print('w2.shape=', w2.shape)
+    # print(w1[0].shape)
+    # print(w2[0].shape)
+    # print(w1[0][0, :3])
+    # print(w2[0][0, :3])
+    net1.set_weights(alpha*w1 + (1.-alpha)*w2)
+    # w3 = np.array(net1.get_weights())
+    # print(w3[0][0, :3])#seems right
     return net1
 
 
@@ -42,15 +47,17 @@ if __name__ == '__main__':
         num_episodes = 100
         file_type = 'tf'
         # file = 'saved_networks/dqn_model_1499'#can fail
-        file = 'saved_networks/dqn_model_1498'#more stable: so the variance is really high; even training is near the end. 
-        dqn_agent.test(env, num_episodes, file_type, file, graph=True)
+        file = 'saved_networks/dqn_model_1498'#more stable: so the variance is really high; even training is near the end.
+        dqn_agent.load_model(file_type, file)
+        dqn_agent.test(env, num_episodes)
     elif args.mode == 'testn':
         num_models = 1500
         avg_score, std_score = np.zeros(num_models), np.zeros(num_models)
         for i in reversed(range(num_models-100, num_models)): #just the last ten models
             t0 = time.time()
             file = 'saved_networks/dqn_model_'+str(i)
-            avg_score[i], std_score[i], _ = dqn_agent.test(env, num_episodes=30, file_type='tf', file=file, graph=True)
+            dqn_agent.load_model(file_type='tf', file=file)
+            avg_score[i], std_score[i], _ = dqn_agent.test(env, num_episodes=30)
             print('testing one model takes:', time.time() -  t0)
         np.save('avg_score.npy', avg_score)
         np.save('std_score.npy', std_score)
@@ -61,11 +68,19 @@ if __name__ == '__main__':
 
         net1 = tf.keras.models.load_model(file1)
         net2 = tf.keras.models.load_model(file2)
-        model = combine_models(net1, net2, alpha=0.5)
 
-        dqn_agent.q_net = model
-        avg_score, std_score, _ = dqn_agent.test(env, num_episodes=30, file_type='tf', file=file, graph=True)
+        dqn_agent.q_net = net1
+        avg_score1, std_score1, _ = dqn_agent.test(env, num_episodes=100)
 
+        dqn_agent.q_net = net2
+        avg_score2, std_score2, _ = dqn_agent.test(env, num_episodes=100)
+
+        dqn_agent.q_net = combine_models(net1, net2, alpha=0.5)
+        avg_score, std_score, _ = dqn_agent.test(env, num_episodes=100)
+
+        print('net1: AVG score:{}; std={}'.format(avg_score1, std_score1))#bad model;
+        print('net2: AVG score:{}; std={}'.format(avg_score2, std_score2))#good model;
+        print('combined net: AVG score:{}; std={}'.format(avg_score, std_score))#this shows the combined net is better than both models!
 
     else:
         print('unknown mode. exit')

@@ -1,3 +1,5 @@
+import sys
+
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -119,15 +121,19 @@ class Agent:
         np.save('bad_models.npy', np.array(bad_models))
         print('bad models are:', bad_models)
 
-
-    def test(self, env, num_episodes, file_type, file, rendering=False):
+    def load_model(self, file_type, file):
         print('loading model ', file)
         if file_type == 'tf':
             self.q_net = tf.keras.models.load_model(file)
         elif file_type == 'h5':
-            self.train_model(env, 5, False)#todo: why train model in testing mode?
-            self.q_net.load_weights(file)
+            # self.train_model(env, 5, False)#todo: why train model in testing mode?
+            # self.q_net.load_weights(file)
+            print('unknown mode yet. ')
+            sys.exit(1)
+        else:
+            pass
 
+    def test(self, env, num_episodes,  rendering=False):
         #set the agent in exploitation mode; no exploration in testing
         self.epsilon = 0.0
         scores = np.zeros(num_episodes)
