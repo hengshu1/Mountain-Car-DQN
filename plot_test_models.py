@@ -6,19 +6,20 @@ avg_score = np.load('avg_score.npy')
 std_score = np.load('std_score.npy')
 
 num_episodes = 1500
-# plt.plot(range(num_episodes-100, num_episodes), avg_score[num_episodes-100: num_episodes], '-b')
-plt.plot(range(num_episodes-100, num_episodes), -avg_score[0: 100], '-b', label='score mean')
-# plt.plot(range(num_episodes-100, num_episodes), std_score[0: 100], '-r', 'score std')#generally the same trend as mean
+num_effective_models = 100#note we only evaluated the last 100 models
+model_lower_index = num_episodes-num_effective_models
+model_scores = avg_score[0: num_effective_models]
+plt.plot(range(model_lower_index, num_episodes), -model_scores, '-b', label='score mean')#todo: this needs to be update because I changed in main.py the indexing
 plt.title('plumeting behavior; even in the end, some models are not stable')
 plt.xlabel('Episodes')
 plt.ylabel('AVG Score')
 plt.legend()
 
 #find best models
-index = np.argsort(avg_score)
-print(avg_score[index[-10:]])
-print(avg_score[index[:10]])
-print(index[:10])
-print(index[-10:])
-
+topk = 10
+index = np.argsort(model_scores)#increasing
+print('top models:', model_lower_index + index[-topk:])
+print('their scores:', model_scores[index[-topk:]])
+print('their scores(using original score array; should be the same):', avg_score[index[-topk:]])
 plt.show()
+

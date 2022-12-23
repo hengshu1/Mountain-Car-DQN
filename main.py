@@ -13,7 +13,7 @@ def combine_models(net1, net2, alpha=0.5):
     '''
     combine the two nets into a single one according to alpha
     '''
-    w1 = np.array(net1.get_weights())
+    w1 = np.array(net1.get_weights())#todo: get a warning; seems Okay
     w2 = np.array(net2.get_weights())
     # print('w1.shape=', w1.shape)#each layer w,b
     # print('w2.shape=', w2.shape)
@@ -63,24 +63,25 @@ if __name__ == '__main__':
         np.save('std_score.npy', std_score)
     elif args.mode == 'tn_search':
 
-        file1 = 'saved_networks/dqn_model_' + str(1400)
-        file2 = 'saved_networks/dqn_model_' + str(1499)
+        file1 = 'saved_networks/dqn_model_' + str(1400)#bad model
+        # file1 = 'saved_networks/dqn_targetnet_' + str(1499)#good model
+        file2 = 'saved_networks/dqn_model_' + str(1499)#good model
 
         net1 = tf.keras.models.load_model(file1)
         net2 = tf.keras.models.load_model(file2)
 
-        dqn_agent.q_net = net1
-        avg_score1, std_score1, _ = dqn_agent.test(env, num_episodes=100)
+        # dqn_agent.q_net = net1
+        # avg_score1, std_score1, _ = dqn_agent.test(env, num_episodes=30)
 
-        dqn_agent.q_net = net2
-        avg_score2, std_score2, _ = dqn_agent.test(env, num_episodes=100)
+        # dqn_agent.q_net = net2
+        # avg_score2, std_score2, _ = dqn_agent.test(env, num_episodes=30)
 
         dqn_agent.q_net = combine_models(net1, net2, alpha=0.5)
-        avg_score, std_score, _ = dqn_agent.test(env, num_episodes=100)
+        avg_score, std_score, _ = dqn_agent.test(env, num_episodes=30)
 
-        print('net1: AVG score:{}; std={}'.format(avg_score1, std_score1))#bad model;
-        print('net2: AVG score:{}; std={}'.format(avg_score2, std_score2))#good model;
-        print('combined net: AVG score:{}; std={}'.format(avg_score, std_score))#this shows the combined net is better than both models!
+        # print('net1: AVG score:{}; std={}'.format(avg_score1, std_score1))
+        # print('net2: AVG score:{}; std={}'.format(avg_score2, std_score2))
+        print('combined net: AVG score:{}; std={}'.format(avg_score, std_score))#this shows the combined net can be better than both models (1400 and 1499)!
 
     else:
         print('unknown mode. exit')
