@@ -13,4 +13,12 @@ plt.title('plumeting behavior; even in the end, some models are not stable')
 plt.xlabel('Episodes')
 plt.ylabel('AVG Score')
 plt.legend()
+
+#find best models
+index = np.argsort(avg_score)
+print(avg_score[index[-10:]])
+print(avg_score[index[:10]])
+print(index[:10])
+print(index[-10:])
+
 plt.show()
