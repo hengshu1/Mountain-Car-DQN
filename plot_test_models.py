@@ -15,7 +15,7 @@ plt.xlabel('Episodes')
 plt.ylabel('AVG Score')
 plt.legend()
 
-#find best models
+#find best models: however, the top-1 model is about 97 steps. This may be still room to improve this performance.
 topk = 10
 index = np.argsort(model_scores)#increasing
 print('top models:', model_lower_index + index[-topk:])
