@@ -34,11 +34,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
     # parser.add_argument('--mode', default='testn', type=str, help='train, test1, testn, or tn_search')
     # parser.add_argument('--mode', default='tn_search', type=str, help='train, test1, testn, or tn_search')
-    parser.add_argument('--mode', default='collect', type=str, help='train, test1, testn, tn_search, or collect samples')
+    parser.add_argument('--mode', default='train', type=str, help='train, test1, testn, tn_search, or collect samples')
+    parser.add_argument('--lr', default=0.0001, type=float, help='learning rate')
 
     args = parser.parse_args()
 
-    dqn_agent = Agent(lr=0.001, discount_factor=0.99, num_actions=3, epsilon=1.0, batch_size=64, input_dims=2)
+    #todo: adding lr argument to saving the models
+    print('learning rate=', args.lr)
+
+    dqn_agent = Agent(lr=args.lr, discount_factor=0.99, num_actions=3, epsilon=1.0, batch_size=64, input_dims=2)
 
     if args.mode == 'train':
         num_episodes = 1500

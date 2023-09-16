@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from replay_buffer import ReplayBuffer
-from dqn_model import DeepQNetwork
+from dqn_model import DeepQNetwork, DeepQNetworkElu1, DeepQNetworkElu2, DeepQNetworkElu3
 import time
 
 class Agent:
@@ -20,9 +20,20 @@ class Agent:
         self.update_frequency = 100
         self.step_counter = 0 #actually the batch counter: the number of batches that are replayed.
         self.buffer = ReplayBuffer(1000000, input_dims)
-        self.q_net = DeepQNetwork(lr, num_actions, input_dims, 256, 256)
-        self.q_target_net = DeepQNetwork(lr, num_actions, input_dims, 256, 256)
 
+        # self.q_net = DeepQNetwork(lr, num_actions, input_dims, 256, 256)
+        # self.q_target_net = DeepQNetwork(lr, num_actions, input_dims, 256, 256)
+
+        #-200 in the end
+        # self.q_net = DeepQNetworkElu1(lr, num_actions, input_dims, 256, 256)
+        # self.q_target_net = DeepQNetworkElu1(lr, num_actions, input_dims, 256, 256)
+
+        #succeed but poorer than pure relu
+        # self.q_net = DeepQNetworkElu2(lr, num_actions, input_dims, 256, 256)
+        # self.q_target_net = DeepQNetworkElu2(lr, num_actions, input_dims, 256, 256)
+
+        self.q_net = DeepQNetworkElu3(lr, num_actions, input_dims, 256, 256)
+        self.q_target_net = DeepQNetworkElu3(lr, num_actions, input_dims, 256, 256)
 
     def policy_epsilon_greedy(self, observation):
         if np.random.random() < self.epsilon:
@@ -102,7 +113,7 @@ class Agent:
             self.q_target_net.save_weights(("saved_networks/dqn_targetnet_{0}/targetnet_weights{0}.h5".format(i)))
 
             txt.write("Episode {0}/{1}, Score: {2} ({3}), AVG Score: {4}, #Samples: {5}".format(i, num_episodes, score, self.epsilon, avg_score, self.buffer.counter))
-
+    
             if i == 0:
                 print('one episode time is ', time.time()-t0)
 
